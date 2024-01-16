@@ -1,0 +1,16 @@
+version: "3"
+services:
+  ##############
+  bms:
+    build: .
+    image: bms:latest
+    runtime: nvidia
+    network_mode: host
+    restart: always
+    devices:
+      - /dev/spidev0.0:/dev/spidev0.0
+      - /dev/spidev0.1:/dev/spidev0.1 
+      - /dev/spidev1.0:/dev/spidev1.0 
+      - /dev/spidev1.1:/dev/spidev1.1
+    volumes:
+      - ./modules:/home/modules

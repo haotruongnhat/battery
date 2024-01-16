@@ -14,11 +14,15 @@ RUN apt-get update \
 
 # Put conda in path so we can use conda activate
 # ENV PATH=$CONDA_DIR/bin:$PATH
-RUN pip3 install requests matplotlib scipy
+RUN pip3 install requests matplotlib scipy pandas scikit-learn
 
 ENV HOME=/home
 WORKDIR /home
-RUN git clone https://github.com/haotruongnhat/battery
+
+COPY ./modules /home/modules
+COPY ./initial_install.sh /home/initial_install.sh
+
+RUN chmod +x /home/initial_install.sh && /home/initial_install.sh
 
 ENTRYPOINT ["tail", "-f", "/dev/null"]
 CMD ["/bin/bash"]

@@ -36,7 +36,7 @@ def fit_norm_distribution_param(args, model, train_dataset, channel_idx=0):
     return mean, cov
 
 
-def anomalyScore(args, model, dataset, mean, cov, channel_idx=0, score_predictor=None):
+def anomalyScore(args, model, dataset, mean, cov, channel_idx=0, score_predictor=None, batch_size=1):
     predictions = []
     rearranged = []
     errors = []
@@ -45,7 +45,7 @@ def anomalyScore(args, model, dataset, mean, cov, channel_idx=0, score_predictor
     with torch.no_grad():
         # Turn on evaluation mode which disables dropout.
         model.eval()
-        pasthidden = model.init_hidden(1)
+        pasthidden = model.init_hidden(batch_size)
         for t in range(len(dataset)):
             out, hidden = model.forward(dataset[t].unsqueeze(0), pasthidden)
             predictions.append([])

@@ -1,3 +1,4 @@
+import sklearn
 import argparse
 import torch
 import pickle
@@ -47,8 +48,8 @@ torch.cuda.manual_seed(args.seed)
 # Load data
 ###############################################################################
 TimeseriesData = preprocess_data.PickleDataLoad(data_type=args.data,filename=args.filename, augment_test_data=False)
-train_dataset = TimeseriesData.batchify(args,TimeseriesData.trainData[:TimeseriesData.length], bsz=1)
-test_dataset = TimeseriesData.batchify(args,TimeseriesData.testData, bsz=1)
+train_dataset = TimeseriesData.batchify(args,TimeseriesData.trainData[:TimeseriesData.length], bsz=64)
+test_dataset = TimeseriesData.batchify(args,TimeseriesData.testData, bsz=64)
 
 
 ###############################################################################
@@ -98,7 +99,6 @@ try:
         score, sorted_prediction, sorted_error, _, predicted_score = anomalyScore(args, model, test_dataset, mean, cov,
                                                                                   score_predictor=score_predictor,
                                                                                   channel_idx=channel_idx)
-
         ''' 4. Evaluate the result '''
         # The obtained anomaly scores are evaluated by measuring precision, recall, and f_beta scores
         # The precision, recall, f_beta scores are are calculated repeatedly,

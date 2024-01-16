@@ -72,7 +72,6 @@ torch.cuda.manual_seed(args.seed)
 ###############################################################################
 # Load data
 ###############################################################################
-import ipdb; ipdb.set_trace()
 TimeseriesData = preprocess_data.PickleDataLoad(data_type=args.data, filename=args.filename,
                                                 augment_test_data=args.augment)
 train_dataset = TimeseriesData.batchify(args,TimeseriesData.trainData, args.batch_size)
