@@ -12,7 +12,7 @@ from pathlib import Path
 import anomaly.preprocess_data as preprocess_data
 import struct
 
-def PickleLoad(preprocess_data.PickleDataLoad):
+class PickleLoad(preprocess_data.PickleDataLoad):
     def __init__(self, data_type, filename, augment_test_data=True):
         self.augment_test_data=augment_test_data
         self.trainData, self.trainLabel = self.preprocessing(Path('anomaly', 'dataset',data_type,'labeled','train',filename),train=True)
@@ -25,9 +25,9 @@ parser.add_argument('--trigger_buffer_size', type=int, default=70,
                     help='')
 parser.add_argument('--past_timestep', type=int, default=30,
                     help='')
-parser.add_argument('--data', type=str, default='ecg',
+parser.add_argument('--data', type=str, default='battery',
                     help='type of the dataset (ecg, gesture, power_demand, space_shuttle, respiration, nyc_taxi')
-parser.add_argument('--filename', type=str, default='chfdb_chf13_45590.pkl',
+parser.add_argument('--filename', type=str, default='cmu.pkl',
                     help='filename of the dataset')
 
 args_ = parser.parse_args()
