@@ -69,8 +69,8 @@ def receive_can_signals():
         recv_buffer.put(recv_buf)
 
 
-def decode_byte_to_signal(byte_list):
-    return struct.unpack("f", bytearray(byte_list))
+def decode_byte_to_signal(buffer):
+    return struct.unpack("f", bytearray([int(i, 16) for i in buffer]))
 
 # Function to perform AI processing on the CAN signals
 def process_can_signals():
