@@ -457,7 +457,6 @@ class MCP2515():
         self.SPI.writebytes([CAN_RESET]) #Reset 0XC0
         
     def Init(self):
-        print("Reset")
         self.Reset()
         time.sleep(0.1)
             
@@ -524,7 +523,6 @@ class MCP2515():
         while(1):
             if(self.ReadByte(CANINTF) & 0x01):
                 len = self.ReadByte(RXB0DLC)
-                print(len)
                 for i in range(0, len): 
                 # //把接收缓冲区里的数据，放到内部RAM缓冲区
                     CAN_RX_Buf.append(hex(self.ReadByte(RXB0D0+i)))
