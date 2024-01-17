@@ -48,8 +48,8 @@ torch.cuda.manual_seed(args.seed)
 # Load data
 ###############################################################################
 TimeseriesData = preprocess_data.PickleDataLoad(data_type=args.data,filename=args.filename, augment_test_data=False)
-train_dataset = TimeseriesData.batchify(args,TimeseriesData.trainData[:TimeseriesData.length], bsz=64)
-test_dataset = TimeseriesData.batchify(args,TimeseriesData.testData, bsz=64)
+train_dataset = TimeseriesData.batchify(args,TimeseriesData.trainData[:TimeseriesData.length], bsz=1)
+test_dataset = TimeseriesData.batchify(args,TimeseriesData.testData, bsz=1)
 
 
 ###############################################################################
@@ -106,8 +106,8 @@ try:
         print('=> calculating precision, recall, and f_beta')
         precision, recall, f_beta = get_precision_recall(args, score, num_samples=1000, beta=args.beta,
                                                          label=TimeseriesData.testLabel.to(args.device))
-        print('data: ',args.data,' filename: ',args.filename,
-              ' f-beta (no compensation): ', f_beta.max().item(),' beta: ',args.beta)
+        # print('data: ',args.data,' filename: ',args.filename,
+        #       ' f-beta (no compensation): ', f_beta.max().item(),' beta: ',args.beta)
         if args.compensate:
             precision, recall, f_beta = get_precision_recall(args, score, num_samples=1000, beta=args.beta,
                                                              label=TimeseriesData.testLabel.to(args.device),

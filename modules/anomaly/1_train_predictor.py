@@ -204,6 +204,7 @@ def train(args, model, train_dataset,epoch):
         total_loss = 0
         start_time = time.time()
         hidden = model.init_hidden(args.batch_size)
+
         for batch, i in enumerate(range(0, train_dataset.size(0) - 1, args.bptt)):
             inputSeq, targetSeq = get_batch(args,train_dataset, i)
             # inputSeq: [ seq_len * batch_size * feature_size ]
@@ -345,7 +346,7 @@ if not args.pretrained:
 # Calculate mean and covariance for each channel's prediction errors, and save them with the trained model
 print('=> calculating mean and covariance')
 means, covs = list(),list()
-train_dataset = TimeseriesData.batchify(args, TimeseriesData.trainData, bsz=1)
+train_dataset = TimeseriesData.batchify(args, TimeseriesData.testData, bsz=1)
 for channel_idx in range(model.enc_input_size):
     mean, cov = fit_norm_distribution_param(args,model,train_dataset[:TimeseriesData.length],channel_idx)
     means.append(mean), covs.append(cov)

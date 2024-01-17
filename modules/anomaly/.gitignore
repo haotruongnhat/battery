@@ -1,8 +1,10 @@
 result/*
 dataset/*
 !dataset/sine_wave
+!dataset/battery
 save/*
 !save/sine_wave
+!save/battery
 
 *.pyc
 ./idea

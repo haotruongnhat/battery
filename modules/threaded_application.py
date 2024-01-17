@@ -9,15 +9,16 @@ from anomaly.anomalyDetector import anomalyScore
 from anomaly.model import model
 from pathlib import Path
 
+import anomaly.preprocess_data as preprocess_data
+import struct
+
 parser = argparse.ArgumentParser(description='PyTorch RNN Anomaly Detection Model')
 parser.add_argument('--prediction_window_size', type=int, default=10,
                     help='prediction_window_size')
-parser.add_argument('--trigger_buffer_size', type=int, default=4,
+parser.add_argument('--trigger_buffer_size', type=int, default=70,
                     help='')
-parser.add_argument('--batch_size', type=int, default=64,
-                    help='batch size')
-parser.add_argument('--queue_max_size', type=int, default=64,
-                    help='batch size')
+parser.add_argument('--past_timestep', type=int, default=30,
+                    help='')
 parser.add_argument('--data', type=str, default='ecg',
                     help='type of the dataset (ecg, gesture, power_demand, space_shuttle, respiration, nyc_taxi')
 parser.add_argument('--filename', type=str, default='chfdb_chf13_45590.pkl',
@@ -34,7 +35,9 @@ args.batch_size= args_.batch_size
 
 print("=> loaded checkpoint")
 
-nfeatures = 8
+TimeseriesData = preprocess_data.PickleDataLoad(data_type=args.data,filename=args.filename, augment_test_data=False)
+
+nfeatures = 1
 model = model.RNNPredictor(rnn_type = args.model,
                            enc_inp_size=nfeatures,
                            rnn_inp_size = args.emsize,
@@ -57,27 +60,54 @@ def receive_can_signals():
     while True:
         # Simulate receiving CAN signals
         recv_buf = can.Receive()
-        print("Message received")
         # Push the CAN signal into the buffer
         recv_buffer.put(recv_buf)
+
+
+def decode_byte_to_signal(byte_list):
+    return struct.unpack("f", bytearray(byte_list))
 
 # Function to perform AI processing on the CAN signals
 def process_can_signals():
     while True:
+        past_data = []
         if recv_buffer.qsize() > args.trigger_buffer_size:
             # Get the CAN signal from the buffer
-            can_signal = recv_buffer.get()
-            data = [recv_buffer.get() for i in range(0, min(recv_buffer.qsize(), args.trigger_buffer_size))]
+            data = [decode_byte_to_signal(recv_buffer.get()) for i in range(0, min(recv_buffer.qsize(), args.trigger_buffer_size))]
+            
+            # Concat with data in the past for more relied predictions
+            infering_data = past_data + data
+            past_data = data[-args.past_timestep:]
+            
             # Perform AI processing on the CAN signal
-            # output_data = perform_ai_processing(can_signal)
-            print(data)
+            scores, predictions = perform_ai_processing(infering_data)
+            
             # send_buffer.put(output_data)
 
 # Function to perform AI processing on CAN signals (replace with your AI logic)
-def perform_ai_processing(can_signal):
-    # Simulate AI processing logic
-    processed_data = can_signal["data"].upper()
-    return processed_data
+def perform_ai_processing(infering_data):
+    data = TimeseriesData.batchify(args, infering_data, bsz=1)
+    score_predictor=None
+
+    scores = []
+    predictions = []
+    for channel_idx in range(nfeatures):
+        mean, cov = checkpoint['means'][channel_idx], checkpoint['covs'][channel_idx]
+        score, sorted_prediction, _, _, _ = anomalyScore(args, model, data, mean, cov,
+                                                        score_predictor=score_predictor,
+                                                        channel_idx=channel_idx,
+                                                        batch_size=1)
+        target = preprocess_data.reconstruct(data.cpu()[:, 0, channel_idx],
+                                             TimeseriesData.mean[channel_idx],
+                                             TimeseriesData.std[channel_idx]).numpy()
+        Nstep_prediction = preprocess_data.reconstruct(sorted_prediction[:, 0].cpu(),
+                                                        TimeseriesData.mean[channel_idx],
+                                                        TimeseriesData.std[channel_idx]).numpy()
+        score = score.cpu()
+        scores.append(score)
+        predictions.append(sorted_prediction)
+
+    return scores, predictions
 
 def send_can_signals():
     pass

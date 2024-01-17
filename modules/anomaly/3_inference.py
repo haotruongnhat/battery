@@ -26,7 +26,7 @@ parser.add_argument('--compensate', action='store_true',
                     help='compensate anomaly score using anomaly score esimation')
 parser.add_argument('--beta', type=float, default=1.0,
                     help='beta value for f-beta score')
-parser.add_argument('--batch_size', type=int, default=64, metavar='N',
+parser.add_argument('--batch_size', type=int, default=1, metavar='N',
                     help='batch size')
 
 args_ = parser.parse_args()
@@ -38,6 +38,7 @@ args.prediction_window_size= args_.prediction_window_size
 args.beta = args_.beta
 args.save_fig = args_.save_fig
 args.compensate = args_.compensate
+args.batch_size = args_.batch_size
 print("=> loaded checkpoint")
 
 
@@ -50,7 +51,7 @@ torch.cuda.manual_seed(args.seed)
 ###############################################################################
 TimeseriesData = preprocess_data.PickleDataLoad(data_type=args.data,filename=args.filename, augment_test_data=False)
 train_dataset = TimeseriesData.batchify(args,TimeseriesData.trainData[:TimeseriesData.length], bsz=args.batch_size)
-test_dataset = TimeseriesData.batchify(args,TimeseriesData.testData, bsz=args.batch_size)
+test_dataset = TimeseriesData.batchify(args,TimeseriesData.testData[:100], bsz=args.batch_size)
 
 ###############################################################################
 # Build the model
@@ -68,41 +69,45 @@ model.load_state_dict(checkpoint['state_dict'])
 
 scores, predicted_scores, precisions, recalls, f_betas = list(), list(), list(), list(), list()
 targets, mean_predictions, oneStep_predictions, Nstep_predictions = list(), list(), list(), list()
-try:
-    # For each channel in the dataset
-    for channel_idx in range(nfeatures):
-        ''' 1. Load mean and covariance if they are pre-calculated, if not calculate them. '''
-        # Mean and covariance are calculated on train dataset.
-        if 'means' in checkpoint.keys() and 'covs' in checkpoint.keys():
-            print('=> loading pre-calculated mean and covariance')
-            mean, cov = checkpoint['means'][channel_idx], checkpoint['covs'][channel_idx]
-        else:
-            print('=> calculating mean and covariance')
-            mean, cov = fit_norm_distribution_param(args, model, train_dataset, channel_idx=channel_idx)
+# For each channel in the dataset
+for channel_idx in range(nfeatures):
+    ''' 1. Load mean and covariance if they are pre-calculated, if not calculate them. '''
+    # Mean and covariance are calculated on train dataset.
+    mean, cov = checkpoint['means'][channel_idx], checkpoint['covs'][channel_idx]
+    score_predictor=None
+    
+    score, sorted_prediction, sorted_error, _, predicted_score = anomalyScore(args, model, test_dataset, mean, cov,
+                                                                                score_predictor=score_predictor,
+                                                                                channel_idx=channel_idx,
+                                                                                batch_size=args.batch_size)
+    
+    target = preprocess_data.reconstruct(test_dataset.cpu()[:, 0, channel_idx],
+                                             TimeseriesData.mean[channel_idx],
+                                             TimeseriesData.std[channel_idx]).numpy()
+    Nstep_prediction = preprocess_data.reconstruct(sorted_prediction[:, 0].cpu(),
+                                                    TimeseriesData.mean[channel_idx],
+                                                    TimeseriesData.std[channel_idx]).numpy()
+    score = score.cpu()
+    save_dir = Path('result',args.data,args.filename).with_suffix('').joinpath('fig_detection')
+    save_dir.mkdir(parents=True,exist_ok=True)
 
-        ''' 2. Train anomaly score predictor using support vector regression (SVR). (Optional) '''
-        # An anomaly score predictor is trained
-        # given hidden layer output and the corresponding anomaly score on train dataset.
-        # Predicted anomaly scores on test dataset can be used for the baseline of the adaptive threshold.
-        if args.compensate:
-            print('=> training an SVR as anomaly score predictor')
-            train_score, _, _, hiddens, _ = anomalyScore(args, model, train_dataset, mean, cov, channel_idx=channel_idx, batch_size=args.batch_size)
-            score_predictor = GridSearchCV(SVR(), cv=5,param_grid={"C": [1e0, 1e1, 1e2],"gamma": np.logspace(-1, 1, 3)})
-            score_predictor.fit(torch.cat(hiddens,dim=0).numpy(), train_score.cpu().numpy())
-        else:
-            score_predictor=None
-
-        ''' 3. Calculate anomaly scores'''
-        # Anomaly scores are calculated on the test dataset
-        # given the mean and the covariance calculated on the train dataset
-        print('=> calculating anomaly scores')
-        import time; t=time.time()
-        score, sorted_prediction, sorted_error, _, predicted_score = anomalyScore(args, model, test_dataset, mean, cov,
-                                                                                  score_predictor=score_predictor,
-                                                                                  channel_idx=channel_idx,
-                                                                                  batch_size=args.batch_size)
-        print(time.time() - t)
-
-except KeyboardInterrupt:
-    print('-' * 89)
-    print('Exiting from training early')
+    fig, ax1 = plt.subplots(figsize=(15,5))
+    ax1.plot(target,label='Target',
+                color='black',  marker='.', linestyle='--', markersize=1, linewidth=0.5)
+    ax1.plot(Nstep_prediction, label=str(args.prediction_window_size) + '-step predictions',
+                color='blue', marker='.', linestyle='--', markersize=1, linewidth=0.5)
+    ax1.legend(loc='upper left')
+    ax1.set_ylabel('Value',fontsize=15)
+    ax1.set_xlabel('Index',fontsize=15)
+    ax2 = ax1.twinx()
+    ax2.plot(score.numpy().reshape(-1, 1), label='Anomaly scores from \nmultivariate normal distribution',
+                color='red', marker='.', linestyle='--', markersize=1, linewidth=1)
+    ax2.legend(loc='upper right')
+    ax2.set_ylabel('anomaly score',fontsize=15)
+    #plt.axvspan(2830,2900 , color='yellow', alpha=0.3)
+    plt.title('Anomaly Detection on ' + args.data + ' Dataset', fontsize=18, fontweight='bold')
+    plt.tight_layout()
+    plt.xlim([0,len(test_dataset)])
+    plt.savefig(str(save_dir.joinpath('fig_scores_channel'+str(channel_idx)).with_suffix('.png')))
+    #plt.show()
+    plt.close()
