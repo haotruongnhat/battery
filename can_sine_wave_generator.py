@@ -8,7 +8,7 @@ amplitude = 1       # Amplitude of the sine wave
 channels = []
 for freq_scale in np.arange(1.0,1 + 0.2*8, 0.2):
     frequency = 10*freq_scale     # Frequency of the sine wave in Hz 
-    duration = 2        # Duration of the sine wave in seconds 
+    duration = 1        # Duration of the sine wave in seconds 
     # Generate a time vector 
     t = np.linspace(0, duration, int(duration * sampling_rate), endpoint=False) 
     # Generate the sine wave 

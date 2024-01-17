@@ -1,5 +1,6 @@
 result/*
 dataset/*
+!dataset/sine_wave
 save/*
 
 *.pyc
@@ -10,3 +11,5 @@ raw_dataset/*
 *.zip
 *.pkl
 anomaly_dataset/*
+
+
