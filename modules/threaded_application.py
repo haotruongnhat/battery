@@ -12,6 +12,12 @@ from pathlib import Path
 import anomaly.preprocess_data as preprocess_data
 import struct
 
+def PickleLoad(preprocess_data.PickleDataLoad):
+    def __init__(self, data_type, filename, augment_test_data=True):
+        self.augment_test_data=augment_test_data
+        self.trainData, self.trainLabel = self.preprocessing(Path('anomaly', 'dataset',data_type,'labeled','train',filename),train=True)
+        self.testData, self.testLabel = self.preprocessing(Path('anomaly', 'dataset',data_type,'labeled','test',filename),train=False)
+
 parser = argparse.ArgumentParser(description='PyTorch RNN Anomaly Detection Model')
 parser.add_argument('--prediction_window_size', type=int, default=10,
                     help='prediction_window_size')
@@ -31,11 +37,10 @@ checkpoint = torch.load(str(Path('anomaly','save',args_.data,'checkpoint',args_.
 args = checkpoint['args']
 args.prediction_window_size= args_.prediction_window_size
 args.trigger_buffer_size= args_.trigger_buffer_size
-args.batch_size= args_.batch_size
 
 print("=> loaded checkpoint")
 
-TimeseriesData = preprocess_data.PickleDataLoad(data_type=args.data,filename=args.filename, augment_test_data=False)
+TimeseriesData = PickleLoad(data_type=args.data,filename=args.filename, augment_test_data=False)
 
 nfeatures = 1
 model = model.RNNPredictor(rnn_type = args.model,
