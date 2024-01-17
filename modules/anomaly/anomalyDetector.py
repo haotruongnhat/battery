@@ -1,6 +1,7 @@
 from torch.autograd import Variable
 import torch
 import numpy as np
+from tqdm import tqdm
 
 def fit_norm_distribution_param(args, model, train_dataset, channel_idx=0):
     predictions = []
@@ -10,7 +11,7 @@ def fit_norm_distribution_param(args, model, train_dataset, channel_idx=0):
         # Turn on evaluation mode which disables dropout.
         model.eval()
         pasthidden = model.init_hidden(1)
-        for t in range(len(train_dataset)):
+        for t in tqdm(range(len(train_dataset))):
             out, hidden = model.forward(train_dataset[t].unsqueeze(0), pasthidden)
             predictions.append([])
             organized.append([])

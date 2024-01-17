@@ -2,6 +2,7 @@ result/*
 dataset/*
 !dataset/sine_wave
 save/*
+!save/sine_wave
 
 *.pyc
 ./idea
