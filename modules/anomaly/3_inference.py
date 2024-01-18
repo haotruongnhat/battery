@@ -13,12 +13,14 @@ from sklearn.model_selection import GridSearchCV
 from anomalyDetector import fit_norm_distribution_param
 from anomalyDetector import anomalyScore
 from anomalyDetector import get_precision_recall
+import time
+
 parser = argparse.ArgumentParser(description='PyTorch RNN Anomaly Detection Model')
 parser.add_argument('--prediction_window_size', type=int, default=10,
                     help='prediction_window_size')
-parser.add_argument('--data', type=str, default='ecg',
+parser.add_argument('--data', type=str, default='battery',
                     help='type of the dataset (ecg, gesture, power_demand, space_shuttle, respiration, nyc_taxi')
-parser.add_argument('--filename', type=str, default='chfdb_chf13_45590.pkl',
+parser.add_argument('--filename', type=str, default='cmu.pkl',
                     help='filename of the dataset')
 parser.add_argument('--save_fig', action='store_true',
                     help='save results as figures')
@@ -26,7 +28,7 @@ parser.add_argument('--compensate', action='store_true',
                     help='compensate anomaly score using anomaly score esimation')
 parser.add_argument('--beta', type=float, default=1.0,
                     help='beta value for f-beta score')
-parser.add_argument('--batch_size', type=int, default=1, metavar='N',
+parser.add_argument('--batch_size', type=int, default=64, metavar='N',
                     help='batch size')
 
 args_ = parser.parse_args()
@@ -51,7 +53,7 @@ torch.cuda.manual_seed(args.seed)
 ###############################################################################
 TimeseriesData = preprocess_data.PickleDataLoad(data_type=args.data,filename=args.filename, augment_test_data=False)
 train_dataset = TimeseriesData.batchify(args,TimeseriesData.trainData[:TimeseriesData.length], bsz=args.batch_size)
-test_dataset = TimeseriesData.batchify(args,TimeseriesData.testData[:100], bsz=args.batch_size)
+test_dataset = TimeseriesData.batchify(args,TimeseriesData.testData[:1000], bsz=args.batch_size)
 
 ###############################################################################
 # Build the model
@@ -76,17 +78,19 @@ for channel_idx in range(nfeatures):
     mean, cov = checkpoint['means'][channel_idx], checkpoint['covs'][channel_idx]
     score_predictor=None
     
+    t = time.time()
     score, sorted_prediction, sorted_error, _, predicted_score = anomalyScore(args, model, test_dataset, mean, cov,
                                                                                 score_predictor=score_predictor,
                                                                                 channel_idx=channel_idx,
                                                                                 batch_size=args.batch_size)
-    
+    print(time.time() - t, "s")
     target = preprocess_data.reconstruct(test_dataset.cpu()[:, 0, channel_idx],
                                              TimeseriesData.mean[channel_idx],
                                              TimeseriesData.std[channel_idx]).numpy()
     Nstep_prediction = preprocess_data.reconstruct(sorted_prediction[:, 0].cpu(),
                                                     TimeseriesData.mean[channel_idx],
                                                     TimeseriesData.std[channel_idx]).numpy()
+    print(target.shape)
     score = score.cpu()
     save_dir = Path('result',args.data,args.filename).with_suffix('').joinpath('fig_detection')
     save_dir.mkdir(parents=True,exist_ok=True)
