@@ -5,18 +5,13 @@ import time
 from can_spi import MCP2515
 import time
 import torch
-from anomaly.anomalyDetector import anomalyScore
-from anomaly.model import model
 from pathlib import Path
 
-import anomaly.preprocess_data as preprocess_data
-import struct
+import keras
+from keras import layers
 
-class PickleLoad(preprocess_data.PickleDataLoad):
-    def __init__(self, data_type, filename, augment_test_data=True):
-        self.augment_test_data=augment_test_data
-        self.trainData, self.trainLabel = self.preprocessing(Path('anomaly', 'dataset',data_type,'labeled','train',filename),train=True)
-        self.testData, self.testLabel = self.preprocessing(Path('anomaly', 'dataset',data_type,'labeled','test',filename),train=False)
+import numpy as np
+import struct
 
 parser = argparse.ArgumentParser(description='PyTorch RNN Anomaly Detection Model')
 parser.add_argument('--prediction_window_size', type=int, default=10,
@@ -30,27 +25,11 @@ parser.add_argument('--data', type=str, default='battery',
 parser.add_argument('--filename', type=str, default='cmu.pkl',
                     help='filename of the dataset')
 
-args_ = parser.parse_args()
+args = parser.parse_args()
 print('-' * 89)
 print("=> loading checkpoint ")
-checkpoint = torch.load(str(Path('anomaly','save',args_.data,'checkpoint',args_.filename).with_suffix('.pth')))
-args = checkpoint['args']
-args.prediction_window_size= args_.prediction_window_size
-args.trigger_buffer_size= args_.trigger_buffer_size
-
+model = keras.models.load_model('autoencoder/weights/dl_autoencoder_tf.keras')
 print("=> loaded checkpoint")
-
-TimeseriesData = PickleLoad(data_type=args.data,filename=args.filename, augment_test_data=False)
-
-nfeatures = 1
-model = model.RNNPredictor(rnn_type = args.model,
-                           enc_inp_size=nfeatures,
-                           rnn_inp_size = args.emsize,
-                           rnn_hid_size = args.nhid,
-                           dec_out_size=nfeatures,
-                           nlayers = args.nlayers,
-                           res_connection=args.res_connection).to(args.device)
-model.load_state_dict(checkpoint['state_dict'])
 
 # Define a thread-safe queue for communication between threads
 recv_buffer = queue.Queue()
@@ -82,7 +61,7 @@ def process_can_signals():
             
             # Concat with data in the past for more relied predictions
             infering_data = past_data + data
-            past_data = data[-args.past_timestep:]
+            # past_data = data[-args.past_timestep:]
             
             # Perform AI processing on the CAN signal
             scores, predictions = perform_ai_processing(infering_data)
@@ -91,28 +70,12 @@ def process_can_signals():
 
 # Function to perform AI processing on CAN signals (replace with your AI logic)
 def perform_ai_processing(infering_data):
-    data = TimeseriesData.batchify(args, infering_data, bsz=1)
-    score_predictor=None
-
-    scores = []
-    predictions = []
-    for channel_idx in range(nfeatures):
-        mean, cov = checkpoint['means'][channel_idx], checkpoint['covs'][channel_idx]
-        score, sorted_prediction, _, _, _ = anomalyScore(args, model, data, mean, cov,
-                                                        score_predictor=score_predictor,
-                                                        channel_idx=channel_idx,
-                                                        batch_size=1)
-        target = preprocess_data.reconstruct(data.cpu()[:, 0, channel_idx],
-                                             TimeseriesData.mean[channel_idx],
-                                             TimeseriesData.std[channel_idx]).numpy()
-        Nstep_prediction = preprocess_data.reconstruct(sorted_prediction[:, 0].cpu(),
-                                                        TimeseriesData.mean[channel_idx],
-                                                        TimeseriesData.std[channel_idx]).numpy()
-        score = score.cpu()
-        scores.append(score)
-        predictions.append(sorted_prediction)
-
-    return scores, predictions
+    X = np.array(infering_data)[np.newaxis, ...] #batch, seq_len, feature
+    
+    X_pred = model.predict(X)
+    
+    mae_loss = np.mean(np.abs(X - X_pred), axis=1).reshape((-1))
+    return mae_loss, X_pred
 
 def send_can_signals():
     pass
