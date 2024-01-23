@@ -4,11 +4,8 @@ import queue
 import time
 from can_spi import MCP2515
 import time
-import torch
-from pathlib import Path
 
 import keras
-from keras import layers
 
 import numpy as np
 import struct
