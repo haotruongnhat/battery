@@ -5,7 +5,7 @@ import time
 from can_spi import MCP2515
 import time
 
-import keras
+import tensorflow.keras as keras
 
 import numpy as np
 import struct
