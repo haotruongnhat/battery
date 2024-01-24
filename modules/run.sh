@@ -1,0 +1,1 @@
+python3 threaded_application.py --trigger_buffer_size 1500

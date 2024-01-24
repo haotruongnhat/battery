@@ -4,7 +4,7 @@ import time
 import pandas as pd
 import struct
 
-signal = pd.read_pickle(r"modules\anomaly\result\battery\cmu\target.pkl")[0]
+signal = pd.read_pickle(r"modules\anomaly\dataset\battery\labeled\train\cmu.pkl")[0]
 
 while(True):
     with can.interface.Bus(interface='pcan', channel='PCAN_USBBUS1', bitrate=500000) as bus:
@@ -20,4 +20,4 @@ while(True):
             except can.CanError:
                 print("Message NOT sent")
 
-            time.sleep(0.1)
+            time.sleep(0.01)
