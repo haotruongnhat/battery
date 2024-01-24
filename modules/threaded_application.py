@@ -5,7 +5,8 @@ import time
 from can_spi import MCP2515
 import time
 
-import tensorflow.keras as keras
+# import tensorflow.keras as keras
+import onnxruntime as ort
 
 import numpy as np
 import struct
@@ -25,7 +26,9 @@ parser.add_argument('--filename', type=str, default='cmu.pkl',
 args = parser.parse_args()
 print('-' * 89)
 print("=> loading checkpoint ")
-model = keras.models.load_model('./autoencoder/weights/dl_anomaly.h5')
+# model = keras.models.load_model('./autoencoder/weights/dl_anomaly.h5')
+ort_sess = ort.InferenceSession('./autoencoder/weights/dl_anomaly.onnx', providers=['TensorrtExecutionProvider'])
+outputs = ort_sess.run(None, {'input_1': np.zeros((1, 1500, 1))})
 print("=> loaded checkpoint")
 
 # Define a thread-safe queue for communication between threads
@@ -69,8 +72,9 @@ def process_can_signals():
 def perform_ai_processing(infering_data):
     X = np.array(infering_data)[np.newaxis, ...] #batch, seq_len, feature
     
-    X_pred = model.predict(X)
-    
+    # X_pred = model.predict(X)
+    X_pred = ort_sess.run(None, {'input_1': np.zeros((1, 1500, 1))})[0]
+
     mae_loss = np.mean(np.abs(X - X_pred), axis=1).reshape((-1))
     return mae_loss, X_pred
 
