@@ -27,8 +27,8 @@ args = parser.parse_args()
 print('-' * 89)
 print("=> loading checkpoint ")
 # model = keras.models.load_model('./autoencoder/weights/dl_anomaly.h5')
-ort_sess = ort.InferenceSession('./autoencoder/weights/dl_anomaly.onnx', providers=['TensorrtExecutionProvider'])
-outputs = ort_sess.run(None, {'input_1': np.zeros((1, 1500, 1))})
+ort_sess = ort.InferenceSession('./autoencoder/weights/dl_anomaly.onnx', providers=['CPUExecutionProvider']) #, 'TensorrtExecutionProvider', 'CUDAExecutionProvider'
+outputs = ort_sess.run(None, {'input_1': np.zeros((1, 1500, 1), dtype=np.float32)})
 print("=> loaded checkpoint")
 
 # Define a thread-safe queue for communication between threads
@@ -41,11 +41,18 @@ can.Init()
 
 # Function to simulate receiving CAN signals and pushing into the buffer
 def receive_can_signals():
+    catched_message = False
     while True:
         # Simulate receiving CAN signals
         recv_buf = can.Receive()
         # Push the CAN signal into the buffer
         recv_buffer.put(recv_buf)
+        
+        if not catched_message:
+            print("Catched messages")
+            catched_message = True
+        
+        
 
 
 def decode_byte_to_signal(buffer):
@@ -64,16 +71,17 @@ def process_can_signals():
             # past_data = data[-args.past_timestep:]
             
             # Perform AI processing on the CAN signal
+            t = time.time()
             scores, predictions = perform_ai_processing(infering_data)
+            print("Anomaly score:", scores, "Time:", round((time.time() - t)*1000, 2), "ms")
             
             # send_buffer.put(output_data)
 
 # Function to perform AI processing on CAN signals (replace with your AI logic)
 def perform_ai_processing(infering_data):
-    X = np.array(infering_data)[np.newaxis, ...] #batch, seq_len, feature
+    X = np.array(infering_data, dtype=np.float32)[np.newaxis, ...] #batch, seq_len, feature
     
-    # X_pred = model.predict(X)
-    X_pred = ort_sess.run(None, {'input_1': np.zeros((1, 1500, 1))})[0]
+    X_pred = ort_sess.run(None, {'input_1': X})[0]
 
     mae_loss = np.mean(np.abs(X - X_pred), axis=1).reshape((-1))
     return mae_loss, X_pred

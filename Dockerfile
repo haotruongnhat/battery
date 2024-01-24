@@ -1,4 +1,4 @@
-FROM dustynv/l4t-pytorch:r32.7.1
+FROM dustynv/onnxruntime:r32.7.1
 
 # Install base utilities
 RUN apt-get update \
