@@ -25,7 +25,7 @@ parser.add_argument('--filename', type=str, default='cmu.pkl',
 args = parser.parse_args()
 print('-' * 89)
 print("=> loading checkpoint ")
-model = keras.models.load_model('autoencoder/weights/dl_autoencoder_tf.keras')
+model = keras.models.load_model('./autoencoder/weights/dl_anomaly.h5')
 print("=> loaded checkpoint")
 
 # Define a thread-safe queue for communication between threads
