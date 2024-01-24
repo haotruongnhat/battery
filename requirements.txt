@@ -1,0 +1,7 @@
+cantools
+tensorflow
+pandas
+scikit-learn
+matplotlib
+scipy
+pandas

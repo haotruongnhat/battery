@@ -20,4 +20,4 @@ while(True):
             except can.CanError:
                 print("Message NOT sent")
 
-            time.sleep(0.01)
+            time.sleep(0.005)
